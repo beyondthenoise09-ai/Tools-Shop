@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ToolsShop - Free Online Tools</title>
+    <meta name="description" content="Free online tools for images, PDFs, and utilities. No login required.">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/tools.css">
+    <link rel="icon" type="image/x-icon" href="assets/icons/favicon.ico">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <div class="logo-area">
+                <div class="logo">
+                    <i class="fas fa-tools"></i>
+                    <h1>ToolsShop</h1>
+                </div>
+                <p class="tagline">Fast • Free • No Login</p>
+            </div>
+            
+            <!-- Sticky Search Bar -->
+            <div class="search-container sticky-search">
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="toolSearch" placeholder="Search tools (jpg, pdf, resize, passport, compress...)">
+                    <button id="clearSearch" class="clear-btn" style="display: none;">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="search-hints">
+                    <span class="hint">Try: passport photo, image resize, pdf merge</span>
+                </div>
+            </div>
+            
+            <div class="stats">
+                <div class="stat-item">
+                    <i class="fas fa-bolt"></i>
+                    <span>Fast Processing</span>
+                </div>
+                <div class="stat-item">
+                    <i class="fas fa-lock"></i>
+                    <span>100% Private</span>
+                </div>
+                <div class="stat-item">
+                    <i class="fas fa-mobile-alt"></i>
+                    <span>Mobile Friendly</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="container">
+            <!-- Welcome Banner -->
+            <section class="welcome-banner">
+                <div class="banner-content">
+                    <h2>All Your Essential Tools in One Place</h2>
+                    <p>Process files directly in your browser. No uploads, no signup, completely free.</p>
+                </div>
+            </section>
+
+            <!-- Image Tools Section -->
+            <section id="image-tools" class="tools-section">
+                <div class="section-header">
+                    <i class="fas fa-image section-icon"></i>
+                    <h2>Image Tools</h2>
+                    <span class="tool-count">10 tools</span>
+                </div>
+                <div class="tools-grid" id="imageToolsGrid">
+                    <!-- Image tools will be populated by JavaScript -->
+                </div>
+            </section>
+
+            <!-- PDF Tools Section -->
+            <section id="pdf-tools" class="tools-section">
+                <div class="section-header">
+                    <i class="fas fa-file-pdf section-icon"></i>
+                    <h2>PDF Tools</h2>
+                    <span class="tool-count">5 tools</span>
+                </div>
+                <div class="tools-grid" id="pdfToolsGrid">
+                    <!-- PDF tools will be populated by JavaScript -->
+                </div>
+            </section>
+
+            <!-- Utility Tools Section -->
+            <section id="utility-tools" class="tools-section">
+                <div class="section-header">
+                    <i class="fas fa-cogs section-icon"></i>
+                    <h2>Utility Tools</h2>
+                    <span class="tool-count">5 tools</span>
+                </div>
+                <div class="tools-grid" id="utilityToolsGrid">
+                    <!-- Utility tools will be populated by JavaScript -->
+                </div>
+            </section>
+
+            <!-- How It Works -->
+            <section class="info-section">
+                <h3>How It Works</h3>
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-number">1</div>
+                        <i class="fas fa-upload step-icon"></i>
+                        <h4>Upload File</h4>
+                        <p>Select your file from device</p>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">2</div>
+                        <i class="fas fa-cog step-icon"></i>
+                        <h4>Process</h4>
+                        <p>Tool processes in your browser</p>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">3</div>
+                        <i class="fas fa-download step-icon"></i>
+                        <h4>Download</h4>
+                        <p>Get your processed file instantly</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Privacy Notice -->
+            <section class="privacy-notice">
+                <i class="fas fa-shield-alt privacy-icon"></i>
+                <h3>Your Privacy is Protected</h3>
+                <p>All processing happens locally in your browser. Files never leave your device and are automatically deleted after processing.</p>
+            </section>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-logo">
+                    <i class="fas fa-tools"></i>
+                    <h3>ToolsShop</h3>
+                    <p>Free online tools for everyone</p>
+                </div>
+                <div class="footer-links">
+                    <a href="#image-tools">Image Tools</a>
+                    <a href="#pdf-tools">PDF Tools</a>
+                    <a href="#utility-tools">Utilities</a>
+                </div>
+                <div class="footer-copy">
+                    <p>&copy; 2024 ToolsShop. All rights reserved.</p>
+                    <p>Made with ❤️ for Indian users</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Tool Modal -->
+    <div id="toolModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Tool</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="toolInterface">
+                    <!-- Tool interface will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <p id="loadingText">Processing...</p>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Files -->
+    <script src="js/main.js"></script>
+    <script src="js/image-tools.js"></script>
+    <script src="js/pdf-tools.js"></script>
+</body>
+</html>
