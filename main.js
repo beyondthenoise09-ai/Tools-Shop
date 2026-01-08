@@ -316,6 +316,9 @@ document.addEventListener('DOMContentLoaded', function() {
         modalTitle.textContent = tool.name;
         toolInterface.innerHTML = getToolInterface(tool.id);
         
+        // Store current tool ID in modal dataset
+        toolModal.dataset.currentToolId = tool.id;
+        
         toolModal.style.display = 'flex';
         document.body.style.overflow = 'hidden';
         
@@ -365,12 +368,99 @@ document.addEventListener('DOMContentLoaded', function() {
                 const input = area.querySelector('input[type="file"]');
                 if (input) input.click();
             });
+            
+            // Add drag and drop functionality
+            area.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                area.style.borderColor = '#3b82f6';
+                area.style.background = '#f0f9ff';
+                area.classList.add('dragover');
+            });
+            
+            area.addEventListener('dragleave', () => {
+                area.style.borderColor = '';
+                area.style.background = '';
+                area.classList.remove('dragover');
+            });
+            
+            area.addEventListener('drop', (e) => {
+                e.preventDefault();
+                area.style.borderColor = '';
+                area.style.background = '';
+                area.classList.remove('dragover');
+                
+                const file = e.dataTransfer.files[0];
+                if (file && file.type.startsWith('image/')) {
+                    const input = area.querySelector('input[type="file"]');
+                    if (input) {
+                        // Create a new DataTransfer to set the file
+                        const dataTransfer = new DataTransfer();
+                        dataTransfer.items.add(file);
+                        input.files = dataTransfer.files;
+                        
+                        // Trigger change event
+                        input.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                }
+            });
         });
 
         // Add event listeners for file inputs
         const fileInputs = document.querySelectorAll('input[type="file"]');
         fileInputs.forEach(input => {
             input.addEventListener('change', handleFileUpload);
+        });
+
+        // Add event listeners for range inputs to show value
+        const rangeInputs = document.querySelectorAll('.option-range');
+        rangeInputs.forEach(range => {
+            const valueDisplay = range.nextElementSibling;
+            if (valueDisplay && valueDisplay.classList.contains('range-value')) {
+                range.addEventListener('input', function() {
+                    valueDisplay.textContent = this.value + '%';
+                });
+            }
+        });
+
+        // Add event listeners for option buttons
+        const optionBtns = document.querySelectorAll('.option-btn');
+        optionBtns.forEach(btn => {
+            btn.addEventListener('click', function() {
+                const parent = this.parentElement;
+                const siblings = parent.querySelectorAll('.option-btn');
+                siblings.forEach(s => s.classList.remove('active'));
+                this.classList.add('active');
+                
+                // Update range value if data-quality attribute exists
+                const quality = this.dataset.quality;
+                if (quality && rangeInputs.length > 0) {
+                    const range = rangeInputs[0];
+                    range.value = quality * 100;
+                    range.dispatchEvent(new Event('input'));
+                }
+            });
+        });
+
+        // Add event listeners for color options
+        const colorOptions = document.querySelectorAll('.color-option');
+        colorOptions.forEach(option => {
+            option.addEventListener('click', function() {
+                const parent = this.parentElement;
+                const siblings = parent.querySelectorAll('.color-option');
+                siblings.forEach(s => s.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+
+        // Add event listeners for size presets
+        const sizePresets = document.querySelectorAll('.size-preset');
+        sizePresets.forEach(preset => {
+            preset.addEventListener('click', function() {
+                const parent = this.parentElement;
+                const siblings = parent.querySelectorAll('.size-preset');
+                siblings.forEach(s => s.classList.remove('active'));
+                this.classList.add('active');
+            });
         });
 
         // Initialize tool-specific functionality
@@ -397,26 +487,32 @@ document.addEventListener('DOMContentLoaded', function() {
             fileSize.textContent = formatFileSize(file.size);
             fileInfo.classList.add('show');
             
-            // Show preview for image files
-            if (file.type.startsWith('image/')) {
-                showImagePreview(file);
-            }
+            // Store file data for later use
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                // Store base64 data in upload area dataset
+                uploadArea.dataset.fileData = e.target.result;
+                uploadArea.dataset.fileName = file.name;
+                uploadArea.dataset.fileType = file.type;
+                
+                // Show preview for image files
+                if (file.type.startsWith('image/')) {
+                    showImagePreview(file, e.target.result);
+                }
+            };
+            reader.readAsDataURL(file);
         }
     }
 
     // Show image preview
-    function showImagePreview(file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const previewContainer = document.querySelector('.preview-container');
-            const originalPreview = document.getElementById('originalPreview');
-            
-            if (previewContainer && originalPreview) {
-                originalPreview.src = e.target.result;
-                previewContainer.classList.add('show');
-            }
-        };
-        reader.readAsDataURL(file);
+    function showImagePreview(file, dataUrl) {
+        const previewContainer = document.querySelector('.preview-container');
+        const originalPreview = document.getElementById('originalPreview');
+        
+        if (previewContainer && originalPreview) {
+            originalPreview.src = dataUrl;
+            previewContainer.classList.add('show');
+        }
     }
 
     // Format file size
@@ -445,32 +541,68 @@ document.addEventListener('DOMContentLoaded', function() {
         progressFill.style.width = '0%';
     }
 
-    // Simulate processing
-    function simulateProcessing() {
-        showLoading();
-        let progress = 0;
+    // Add new function to handle actual image processing
+    function processImageConversion(toolId) {
+        const uploadArea = document.querySelector('.upload-area');
+        const fileData = uploadArea.dataset.fileData;
         
-        const interval = setInterval(() => {
-            progress += 10;
-            updateProgress(progress);
-            
-            if (progress >= 100) {
-                clearInterval(interval);
-                setTimeout(() => {
-                    hideLoading();
-                    showResult();
-                }, 500);
-            }
-        }, 200);
-    }
-
-    // Show result
-    function showResult() {
-        const resultArea = document.querySelector('.result-area');
-        if (resultArea) {
-            resultArea.classList.add('show');
-            resultArea.scrollIntoView({ behavior: 'smooth' });
+        if (!fileData) {
+            alert('Please upload an image first');
+            return false;
         }
+        
+        showLoading('Converting image...');
+        
+        // Get conversion settings
+        const quality = document.querySelector('.option-range')?.value / 100 || 0.9;
+        
+        let conversionPromise;
+        
+        // Determine which conversion to perform
+        if (toolId === 'jpg-to-png') {
+            conversionPromise = window.ImageTools.convertJpgToPng(fileData, quality);
+        } else if (toolId === 'png-to-jpg') {
+            conversionPromise = window.ImageTools.convertPngToJpg(fileData, quality, '#FFFFFF');
+        } else if (toolId === 'image-resize') {
+            const width = parseInt(document.querySelector('input[placeholder="Width"]')?.value) || 800;
+            const height = parseInt(document.querySelector('input[placeholder="Height"]')?.value) || 600;
+            const maintainRatio = document.querySelector('.option-btn.active')?.textContent === 'Yes';
+            conversionPromise = window.ImageTools.resizeImage(fileData, width, height, maintainRatio);
+        } else if (toolId === 'image-compress') {
+            const quality = document.querySelector('.option-range')?.value / 100 || 0.8;
+            conversionPromise = window.ImageTools.compressImage(fileData, quality);
+        } else if (toolId === 'passport-photo') {
+            const size = document.querySelector('.size-preset.active .size-label')?.textContent || 'Indian Passport';
+            const bgColor = document.querySelector('.color-option.active')?.style.backgroundColor || '#FFFFFF';
+            conversionPromise = window.ImageTools.createPassportPhoto(fileData, size, bgColor);
+        } else if (toolId === 'image-enhancer') {
+            const options = {
+                contrast: 1.2,
+                brightness: 10,
+                sharpen: true
+            };
+            conversionPromise = window.ImageTools.enhanceImage(fileData, options);
+        } else if (toolId === 'rotate-image') {
+            const degrees = 90; // Default 90 degrees
+            conversionPromise = window.ImageTools.rotateImage(fileData, degrees);
+        } else if (toolId === 'flip-image') {
+            const direction = 'horizontal'; // Default horizontal flip
+            conversionPromise = window.ImageTools.flipImage(fileData, direction);
+        } else {
+            // Default to generic processing
+            conversionPromise = Promise.resolve(fileData);
+        }
+        
+        return conversionPromise
+            .then(convertedData => {
+                hideLoading();
+                return convertedData;
+            })
+            .catch(error => {
+                hideLoading();
+                alert('Processing failed: ' + error.message);
+                return null;
+            });
     }
 
     // Setup event listeners
@@ -508,9 +640,72 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         // Process buttons
-        document.addEventListener('click', function(e) {
-            if (e.target.classList.contains('process-btn')) {
-                simulateProcessing();
+        document.addEventListener('click', async function(e) {
+            if (e.target.classList.contains('process-btn') || 
+                e.target.closest('.process-btn')) {
+                
+                const processBtn = e.target.classList.contains('process-btn') ? 
+                                  e.target : e.target.closest('.process-btn');
+                
+                // Get current tool ID from modal
+                const currentToolId = toolModal.dataset.currentToolId;
+                
+                if (!currentToolId) {
+                    alert('Tool not identified');
+                    return;
+                }
+                
+                // Process the image
+                const convertedData = await processImageConversion(currentToolId);
+                
+                if (convertedData) {
+                    // Update converted preview
+                    const convertedPreview = document.getElementById('convertedPreview') || 
+                                           document.getElementById('resizedPreview') ||
+                                           document.getElementById('compressedPreview') ||
+                                           document.getElementById('passportPreview') ||
+                                           document.getElementById('processedPreview');
+                    
+                    if (convertedPreview) {
+                        convertedPreview.src = convertedData;
+                        
+                        // Show the preview container
+                        const previewContainer = document.querySelector('.preview-container');
+                        if (previewContainer) {
+                            previewContainer.classList.add('show');
+                        }
+                    }
+                    
+                    // Update download button
+                    const downloadBtn = document.querySelector('.download-btn');
+                    if (downloadBtn) {
+                        const originalFileName = document.querySelector('.upload-area').dataset.fileName || 'image';
+                        const fileExt = currentToolId === 'jpg-to-png' ? 'png' : 
+                                      currentToolId === 'png-to-jpg' ? 'jpg' :
+                                      currentToolId === 'passport-photo' ? 'jpg' :
+                                      'jpg';
+                        
+                        // Remove existing extension and add new one
+                        const baseName = originalFileName.replace(/\.[^/.]+$/, "");
+                        const newFileName = `${baseName}_converted.${fileExt}`;
+                        
+                        downloadBtn.href = convertedData;
+                        downloadBtn.download = newFileName;
+                        
+                        // Update download text
+                        const downloadText = downloadBtn.querySelector('span') || downloadBtn;
+                        downloadText.innerHTML = `<i class="fas fa-download"></i> Download ${fileExt.toUpperCase()}`;
+                    }
+                    
+                    // Show result area
+                    const resultArea = document.querySelector('.result-area');
+                    if (resultArea) {
+                        resultArea.classList.add('show');
+                        resultArea.scrollIntoView({ behavior: 'smooth' });
+                    }
+                    
+                    alert('Processing completed successfully!');
+                }
             }
             
             if (e.target.classList.contains('reset-btn')) {
@@ -544,11 +739,18 @@ document.addEventListener('DOMContentLoaded', function() {
         uploadAreas.forEach(area => {
             const text = area.querySelector('.upload-text');
             if (text) text.textContent = 'Click to upload or drag & drop';
+            delete area.dataset.fileData;
+            delete area.dataset.fileName;
+            delete area.dataset.fileType;
         });
     }
 
     // Tool Interface Templates
     function getImageConverterInterface(title) {
+        const isJpgToPng = title.includes('JPG to PNG');
+        const fromFormat = isJpgToPng ? 'JPG' : 'PNG';
+        const toFormat = isJpgToPng ? 'PNG' : 'JPG';
+        
         return `
             <div class="tool-interface">
                 <div class="upload-area">
@@ -556,27 +758,27 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="upload-icon">
                         <i class="fas fa-cloud-upload-alt"></i>
                     </div>
-                    <div class="upload-text">Click to upload or drag & drop</div>
-                    <div class="upload-subtext">Supports JPG, PNG, WEBP (Max 10MB)</div>
+                    <div class="upload-text">Click to upload ${fromFormat} image</div>
+                    <div class="upload-subtext">Supports ${fromFormat}, PNG, WEBP (Max 10MB)</div>
                 </div>
                 
                 <div class="file-info">
-                    <div class="file-name">filename.jpg</div>
-                    <div class="file-size">2.5 MB</div>
+                    <div class="file-name">No file selected</div>
+                    <div class="file-size">--</div>
                 </div>
                 
                 <div class="preview-container">
                     <div class="preview-title">
-                        <i class="fas fa-eye"></i> Preview
+                        <i class="fas fa-eye"></i> Image Preview
                     </div>
                     <div class="preview-box">
                         <div class="preview-column">
-                            <div class="preview-label">Original</div>
-                            <img id="originalPreview" class="preview-image" alt="Original">
+                            <div class="preview-label">Original (${fromFormat})</div>
+                            <img id="originalPreview" class="preview-image" alt="Original" style="max-width: 300px; max-height: 300px;">
                         </div>
                         <div class="preview-column">
-                            <div class="preview-label">Converted</div>
-                            <img id="convertedPreview" class="preview-image" alt="Converted">
+                            <div class="preview-label">Converted (${toFormat})</div>
+                            <img id="convertedPreview" class="preview-image" alt="Converted" style="max-width: 300px; max-height: 300px; border: 2px dashed #3b82f6;">
                         </div>
                     </div>
                 </div>
@@ -587,6 +789,18 @@ document.addEventListener('DOMContentLoaded', function() {
                         <input type="range" class="option-range" min="1" max="100" value="90">
                         <div class="range-value">90%</div>
                     </div>
+                    
+                    ${!isJpgToPng ? `
+                    <div class="option-group">
+                        <label class="option-label">Background Color (for transparency)</label>
+                        <div class="color-options">
+                            <div class="color-option active" style="background: white;"></div>
+                            <div class="color-option" style="background: #f8fafc;"></div>
+                            <div class="color-option" style="background: #e0f2fe;"></div>
+                            <div class="color-option" style="background: #fef3c7;"></div>
+                        </div>
+                    </div>
+                    ` : ''}
                 </div>
                 
                 <div class="action-buttons">
@@ -594,7 +808,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <i class="fas fa-redo"></i> Reset
                     </button>
                     <button class="action-btn action-btn-primary process-btn">
-                        <i class="fas fa-cog"></i> Convert Now
+                        <i class="fas fa-sync-alt"></i> Convert to ${toFormat}
                     </button>
                 </div>
                 
@@ -603,10 +817,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         <i class="fas fa-check-circle"></i>
                     </div>
                     <h3 class="result-title">Conversion Complete!</h3>
-                    <p class="result-info">Your image has been converted successfully. Click below to download.</p>
-                    <a href="#" class="download-btn" download="converted-image.png">
-                        <i class="fas fa-download"></i> Download PNG
+                    <p class="result-info">Your ${fromFormat} image has been converted to ${toFormat} format successfully.</p>
+                    <a href="#" class="download-btn" download="converted-image.${toFormat.toLowerCase()}">
+                        <i class="fas fa-download"></i> Download ${toFormat}
                     </a>
+                    <div style="margin-top: 1rem; font-size: 0.9rem; color: #64748b;">
+                        <i class="fas fa-info-circle"></i> File will download as <strong>converted-image.${toFormat.toLowerCase()}</strong>
+                    </div>
                 </div>
             </div>
         `;
@@ -620,13 +837,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="upload-icon">
                         <i class="fas fa-cloud-upload-alt"></i>
                     </div>
-                    <div class="upload-text">Click to upload or drag & drop</div>
+                    <div class="upload-text">Click to upload image</div>
                     <div class="upload-subtext">Supports JPG, PNG, WEBP (Max 10MB)</div>
                 </div>
                 
                 <div class="file-info">
-                    <div class="file-name">filename.jpg</div>
-                    <div class="file-size">2.5 MB</div>
+                    <div class="file-name">No file selected</div>
+                    <div class="file-size">--</div>
                 </div>
                 
                 <div class="preview-container">
@@ -717,44 +934,49 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="upload-icon">
                         <i class="fas fa-cloud-upload-alt"></i>
                     </div>
-                    <div class="upload-text">Click to upload or drag & drop</div>
+                    <div class="upload-text">Click to upload image</div>
                     <div class="upload-subtext">Supports JPG, PNG, WEBP (Max 10MB)</div>
                 </div>
                 
                 <div class="file-info">
-                    <div class="file-name">filename.jpg</div>
-                    <div class="file-size">2.5 MB</div>
+                    <div class="file-name">No file selected</div>
+                    <div class="file-size">--</div>
                 </div>
                 
                 <div class="preview-container">
                     <div class="preview-title">
-                        <i class="fas fa-eye"></i> Preview
+                        <i class="fas fa-eye"></i> Compression Preview
                     </div>
                     <div class="preview-box">
                         <div class="preview-column">
-                            <div class="preview-label">Original (2.5 MB)</div>
+                            <div class="preview-label" id="originalSizeLabel">Original (--)</div>
                             <img id="originalPreview" class="preview-image" alt="Original">
                         </div>
                         <div class="preview-column">
-                            <div class="preview-label">Compressed (0.8 MB)</div>
+                            <div class="preview-label" id="compressedSizeLabel">Compressed (--)</div>
                             <img id="compressedPreview" class="preview-image" alt="Compressed">
                         </div>
                     </div>
+                    <div id="compressionStats" style="margin-top: 1rem; text-align: center; color: #3b82f6; font-weight: 500;"></div>
                 </div>
                 
                 <div class="tool-options">
                     <div class="option-group">
                         <label class="option-label">Compression Level</label>
-                        <input type="range" class="option-range" min="1" max="100" value="80">
+                        <input type="range" class="option-range" min="10" max="100" value="80">
                         <div class="range-value">80% (Balanced)</div>
+                        <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #64748b; margin-top: 5px;">
+                            <span>Smaller file</span>
+                            <span>Better quality</span>
+                        </div>
                     </div>
                     
                     <div class="option-group">
                         <label class="option-label">Target Size</label>
                         <div class="option-row">
-                            <button class="option-btn active">Optimal</button>
-                            <button class="option-btn">Small</button>
-                            <button class="option-btn">Tiny</button>
+                            <button class="option-btn active" data-quality="0.6">Small</button>
+                            <button class="option-btn" data-quality="0.8">Optimal</button>
+                            <button class="option-btn" data-quality="0.9">High Quality</button>
                         </div>
                     </div>
                 </div>
@@ -764,7 +986,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <i class="fas fa-redo"></i> Reset
                     </button>
                     <button class="action-btn action-btn-primary process-btn">
-                        <i class="fas fa-cog"></i> Compress Image
+                        <i class="fas fa-compress"></i> Compress Image
                     </button>
                 </div>
                 
@@ -773,7 +995,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <i class="fas fa-check-circle"></i>
                     </div>
                     <h3 class="result-title">Compression Complete!</h3>
-                    <p class="result-info">Reduced from 2.5 MB to 0.8 MB (68% smaller).</p>
+                    <p class="result-info" id="compressionResultText">Your image has been compressed successfully.</p>
                     <a href="#" class="download-btn" download="compressed-image.jpg">
                         <i class="fas fa-download"></i> Download Compressed
                     </a>
@@ -795,8 +1017,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
                 
                 <div class="file-info">
-                    <div class="file-name">filename.jpg</div>
-                    <div class="file-size">2.5 MB</div>
+                    <div class="file-name">No file selected</div>
+                    <div class="file-size">--</div>
                 </div>
                 
                 <div class="preview-container">
@@ -899,8 +1121,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
                 
                 <div class="file-info">
-                    <div class="file-name">document.pdf</div>
-                    <div class="file-size">5.2 MB</div>
+                    <div class="file-name">No file selected</div>
+                    <div class="file-size">--</div>
                 </div>
                 
                 <div class="tool-options">
@@ -1515,8 +1737,8 @@ No data is sent to any server - complete privacy!</textarea>
                 </div>
                 
                 <div class="file-info">
-                    <div class="file-name">filename.jpg</div>
-                    <div class="file-size">2.5 MB</div>
+                    <div class="file-name">No file selected</div>
+                    <div class="file-size">--</div>
                 </div>
                 
                 <div class="preview-container">
